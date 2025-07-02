@@ -6,6 +6,16 @@ defmodule Todo.Server do
     GenServer.start(Todo.Server, nil)
   end
 
+  def add_entry(server_pid, entry) do
+    GenServer.call(server_pid, {:add_entry, entry})
+  end
+
+  def entries(server_pid, date) do
+    {:ok, entries} = GenServer.call(server_pid, {:entries, date})
+
+    entries
+  end
+
   @impl GenServer
   def init(_state) do
     {:ok, List.new()}
