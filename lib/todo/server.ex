@@ -2,8 +2,8 @@ defmodule Todo.Server do
   alias Todo.List
   use GenServer
 
-  def start do
-    GenServer.start(Todo.Server, nil)
+  def start(todo_list_name) do
+    GenServer.start(Todo.Server, todo_list_name)
   end
 
   def add_entry(server_pid, entry) do
@@ -17,36 +17,37 @@ defmodule Todo.Server do
   end
 
   @impl GenServer
-  def init(_state) do
-    {:ok, List.new()}
+  def init(list_name) do
+    {:ok, {Todo.Database.get(list_name) || List.new(), list_name}}
   end
 
   @impl GenServer
-  def handle_call({:entries, date}, _from, todo_list) do
+  def handle_call({:entries, date}, _from, {todo_list, list_name}) do
     entries = List.entries(todo_list, date)
 
-    {:reply, {:ok, entries}, todo_list}
+    {:reply, {:ok, entries}, {todo_list, list_name}}
   end
 
   @impl GenServer
-  def handle_call({:add_entry, entry}, _from, todo_list) do
+  def handle_call({:add_entry, entry}, _from, {todo_list, list_name}) do
     updated_todo_list = List.add_entry(todo_list, entry)
+    Todo.Database.store(list_name, updated_todo_list)
 
-    {:reply, {:ok, updated_todo_list}, updated_todo_list}
+    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
   end
 
   @impl GenServer
-  def handle_call({:update_entry, entry_id, updater_fn}, _from, todo_list) do
+  def handle_call({:update_entry, entry_id, updater_fn}, _from, {todo_list, list_name}) do
     updated_todo_list = List.update_entry(todo_list, entry_id, updater_fn)
 
-    {:reply, {:ok, updated_todo_list}, updated_todo_list}
+    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
   end
 
   @impl GenServer
-  def handle_call({:delete_entry, entry_id}, _from, todo_list) do
+  def handle_call({:delete_entry, entry_id}, _from, {todo_list, list_name}) do
     updated_todo_list = List.delete_entry(todo_list, entry_id)
 
-    {:reply, {:ok, updated_todo_list}, updated_todo_list}
+    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
   end
 
   def get_mock_data do
