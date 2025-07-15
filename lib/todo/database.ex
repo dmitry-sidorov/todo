@@ -28,7 +28,7 @@ defmodule Todo.Database do
     {:noreply, state}
   end
 
-  def handle_cast({:get, key}, _, state) do
+  def handle_call({:get, key}, _, state) do
     data = case File.read(file_name(key)) do
       {:ok, contents} -> :erlang.binary_to_term(contents)
       _ -> nil
