@@ -2,49 +2,44 @@ defmodule Todo.Database do
   use GenServer
 
   @db_folder "./persist"
-  @worker_ids [0, 1, 2]
 
   def start do
     GenServer.start(__MODULE__, nil, name: __MODULE__)
   end
 
   def store(key, data) do
-    choose_worker(key) |> Todo.DatabaseWorker.store(key, data)
+    key
+    |> choose_worker()
+    |> Todo.DatabaseWorker.store(key, data)
   end
 
   def get(key) do
-    choose_worker(key) |> Todo.DatabaseWorker.get(key)
+    key
+    |> choose_worker()
+    |> Todo.DatabaseWorker.get(key)
   end
 
   defp choose_worker(key) do
     GenServer.call(__MODULE__, {:choose_worker, key})
   end
 
-  @impl true
+  @impl GenServer
   def init(_) do
-    workers_pool = @worker_ids
-    |> Enum.reduce(%{}, fn (index, acc) ->
+    IO.puts("Starting database server.")
+    File.mkdir_p!(@db_folder)
+    {:ok, start_workers()}
+  end
+
+  @impl GenServer
+  def handle_call({:choose_worker, key}, _, workers) do
+    worker_key = :erlang.phash2(key, 3)
+    {:reply, Map.get(workers, worker_key), workers}
+  end
+
+  defp start_workers() do
+    for index <- 1..3, into: %{} do
       {:ok, pid} = Todo.DatabaseWorker.start(@db_folder)
-      Map.put(acc, index, pid)
-    end)
-
-    {:ok, workers_pool}
-  end
-
-  def show_pool() do
-    GenServer.call(__MODULE__, :pool)
-  end
-
-  @impl true
-  def handle_call(:pool, _, state) do
-    {:reply, state, state}
-  end
-
-  @impl true
-  def handle_call({:choose_worker, key}, _, pool) do
-    worker_id = :erlang.phash2(key, 3)
-    worker = Map.get(pool, worker_id)
-
-    {:reply, worker, pool}
+      {index - 1, pid}
+    end
   end
 end

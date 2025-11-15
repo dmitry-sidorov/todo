@@ -1,66 +1,43 @@
 defmodule Todo.Server do
-  alias Todo.List
   use GenServer
 
-  def start(todo_list_name) do
-    GenServer.start(Todo.Server, todo_list_name)
+  def start(name) do
+    GenServer.start(Todo.Server, name)
   end
 
-  def add_entry(server_pid, entry) do
-    GenServer.call(server_pid, {:add_entry, entry})
+  def add_entry(todo_server, new_entry) do
+    GenServer.cast(todo_server, {:add_entry, new_entry})
   end
 
-  def entries(server_pid, date) do
-    {:ok, entries} = GenServer.call(server_pid, {:entries, date})
-
-    entries
-  end
-
-  @impl GenServer
-  def init(list_name) do
-    {:ok, {Todo.Database.get(list_name) || List.new(), list_name}}
+  def entries(todo_server, date) do
+    GenServer.call(todo_server, {:entries, date})
   end
 
   @impl GenServer
-  def handle_call({:entries, date}, _from, {todo_list, list_name}) do
-    entries = List.entries(todo_list, date)
-
-    {:reply, {:ok, entries}, {todo_list, list_name}}
+  def init(name) do
+    IO.puts("Starting to-do server for #{name}.")
+    {:ok, {name, nil}, {:continue, :init}}
   end
 
   @impl GenServer
-  def handle_call({:add_entry, entry}, _from, {todo_list, list_name}) do
-    updated_todo_list = List.add_entry(todo_list, entry)
-    Todo.Database.store(list_name, updated_todo_list)
-
-    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
+  def handle_continue(:init, {name, nil}) do
+    todo_list = Todo.Database.get(name) || Todo.List.new()
+    {:noreply, {name, todo_list}}
   end
 
   @impl GenServer
-  def handle_call({:update_entry, entry_id, updater_fn}, _from, {todo_list, list_name}) do
-    updated_todo_list = List.update_entry(todo_list, entry_id, updater_fn)
-
-    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
+  def handle_cast({:add_entry, new_entry}, {name, todo_list}) do
+    new_list = Todo.List.add_entry(todo_list, new_entry)
+    Todo.Database.store(name, new_list)
+    {:noreply, {name, new_list}}
   end
 
   @impl GenServer
-  def handle_call({:delete_entry, entry_id}, _from, {todo_list, list_name}) do
-    updated_todo_list = List.delete_entry(todo_list, entry_id)
-
-    {:reply, {:ok, updated_todo_list}, {updated_todo_list, list_name}}
-  end
-
-  def get_mock_data do
-    ~D[2018-12-19]
-  end
-
-  def get_mock_entry do
-    [
-      %{date: get_mock_data(), title: "Dentist"},
-      %{date: get_mock_data(), title: "Movies"},
-      %{date: get_mock_data(), title: "Shopping"},
-      %{date: get_mock_data(), title: "Sleeping"},
-      %{date: get_mock_data(), title: "Dinner"},
-    ] |> Enum.random()
+  def handle_call({:entries, date}, _, {name, todo_list}) do
+    {
+      :reply,
+      Todo.List.entries(todo_list, date),
+      {name, todo_list}
+    }
   end
 end
