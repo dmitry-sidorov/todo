@@ -6,7 +6,7 @@ defmodule Todo.Server do
   end
 
   def add_entry(todo_server, new_entry) do
-    GenServer.cast(todo_server, {:add_entry, new_entry})
+    GenServer.cast(todo_server, {:add_entry, new_entry})   
   end
 
   def entries(todo_server, date) do
