@@ -15,4 +15,12 @@ defmodule Todo.Database do
 
     Supervisor.child_spec(default_worker_spec, id: worker_id)
   end
+
+  def child_spec(_) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []},
+      type: :supervisor,
+     }
+  end
 end
