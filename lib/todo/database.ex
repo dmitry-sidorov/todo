@@ -2,7 +2,7 @@ defmodule Todo.Database do
   @pool_size 3
   @db_folder "./persist"
 
-  def start_link(_) do
+  def start_link do
     IO.puts("Starting database supervisor.")
     File.mkdir_p!(@db_folder)
 
@@ -16,11 +16,27 @@ defmodule Todo.Database do
     Supervisor.child_spec(default_worker_spec, id: worker_id)
   end
 
+  def store(key, data) do
+    key
+    |> choose_worker()
+    |> Todo.DatabaseWorker.store(key, data)
+  end
+
+  def get(key) do
+    key
+    |> choose_worker()
+    |> Todo.DatabaseWorker.get(key)
+  end
+
+  def choose_worker(key) do
+    :erlang.phash2(key, @pool_size) + 1
+  end
+
   def child_spec(_) do
     %{
       id: __MODULE__,
       start: {__MODULE__, :start_link, []},
-      type: :supervisor,
+      type: :supervisor
      }
   end
 end
